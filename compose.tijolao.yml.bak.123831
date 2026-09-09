@@ -62,11 +62,6 @@ services:
       timeout: 5s
       retries: 6
       start_period: 60s
-    logging:
-      driver: json-file
-      options:
-        max-size: '10m'
-        max-file: '3'
     deploy:
       resources:
         limits:
@@ -79,7 +74,6 @@ services:
     depends_on:
       hermes-agent:
         condition: service_healthy
-        restart: true
     network_mode: host
     environment:
       HERMES_UID: '1000'
@@ -101,11 +95,6 @@ services:
     volumes:
       - /home/dr/.hermes:/home/workspace/.hermes
       - /home/dr/projetos:/workspace/projetos
-    logging:
-      driver: json-file
-      options:
-        max-size: '10m'
-        max-file: '3'
     deploy:
       resources:
         limits:
