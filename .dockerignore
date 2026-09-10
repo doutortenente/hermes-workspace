@@ -3,3 +3,19 @@ node_modules
 dist
 .git
 .env
+
+# --- Tijolao: fora do contexto de build ---
+# Editar o compose, o script de controle ou a documentacao invalidava a camada
+# `COPY . .` e forcava rebuild do `pnpm build` sem necessidade.
+docker-compose.yml
+docker-compose.dev.yml
+docker-compose.tijolao.yml
+tijolao.sh
+COMO-USAR.md
+README.md
+CHANGELOG.md
+CONTRIBUTING.md
+SECURITY.md
+AGENTS.md
+.git
+.gitignore
