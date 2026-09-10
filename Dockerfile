@@ -17,7 +17,12 @@ FROM tianon/gosu:1.17-bookworm AS gosu_source
 
 # --- estagio de build --------------------------------------------------------
 FROM node:22-slim AS build
-ENV ELECTRON_SKIP_BINARY_DOWNLOAD=1
+# ELECTRON_SKIP_BINARY_DOWNLOAD: o app desktop nao e usado aqui; poupa ~150 MB
+# de download em cada build.
+# NODE_OPTIONS: o bundle arrasta three.js + monaco + shiki; o heap padrao do
+# node nesta maquina (7,6 GB de RAM) fica perto de 2 GB e o vite build estoura.
+ENV ELECTRON_SKIP_BINARY_DOWNLOAD=1 \
+    NODE_OPTIONS=--max-old-space-size=4096
 RUN corepack enable && apt-get update && apt-get install -y --no-install-recommends ca-certificates && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 

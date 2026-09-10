@@ -27,7 +27,7 @@ services:
     restart: unless-stopped
     # O entrypoint da imagem cai na CLI interativa, que sai na hora sob `up -d`.
     # `gateway run` e o processo longo que serve a API e o health.
-    command: ["gateway", "run"]
+    command: ["gateway", "run", "--replace"]
     network_mode: host
     env_file:
       - .env                      # symlink -> /home/dr/projetos/.env (cofre)
