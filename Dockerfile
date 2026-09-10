@@ -1,35 +1,38 @@
 # syntax=docker/dockerfile:1.6
-# Hermes Workspace — production Docker image
-# Publishes to ghcr.io/outsourc-e/hermes-workspace
+# Hermes Workspace — imagem de producao (fork doutortenente, ajustes Tijolao)
 #
-# Build locally:
-#   docker build -t hermes-workspace .
-# Run:
-#   docker run -p 3000:3000 -e HERMES_API_URL=http://host.docker.internal:8642 hermes-workspace
-# Or pull pre-built:
-#   docker pull ghcr.io/outsourc-e/hermes-workspace:latest
+# Diferencas em relacao ao Dockerfile upstream:
+#   1. ELECTRON_SKIP_BINARY_DOWNLOAD=1 no build: o app desktop nao e usado aqui,
+#      e o postinstall do electron baixava ~150 MB a cada build.
+#   2. O estagio de runtime passa a copiar swarm.yaml, assets/, scripts/ e agents/.
+#      O servidor le esses caminhos a partir de process.cwd() (= /app):
+#        - src/server/swarm-roster.ts        -> <cwd>/swarm.yaml
+#        - src/server/mcp-presets-store.ts   -> <cwd>/assets/mcp-presets.seed.json
+#        - src/routes/api/skills/hub-search.ts -> <cwd>/scripts/skills-search.py
+#      Sem eles, Swarm / presets de MCP / busca de skills quebram em container.
+#   3. /app/.runtime criado e com dono correto. O servidor grava ali
+#      (tool-artifacts, sessoes locais, swarm-missions) e /app pertence ao root.
 #
 FROM tianon/gosu:1.17-bookworm AS gosu_source
-# ─── build stage ─────────────────────────────────────────────────────────
+
+# --- estagio de build --------------------------------------------------------
 FROM node:22-slim AS build
+ENV ELECTRON_SKIP_BINARY_DOWNLOAD=1
 RUN corepack enable && apt-get update && apt-get install -y --no-install-recommends ca-certificates && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 
-# Install deps (cache-friendly: copy only manifests first)
-# NOTE: pnpm-workspace.yaml carries the allowBuilds approvals (electron/esbuild/…);
-# it must be present or pnpm 10+/11 fatally errors on ignored build scripts.
+# Instala deps (cache-friendly: so os manifests primeiro).
+# pnpm-workspace.yaml carrega as aprovacoes de allowBuilds (electron/esbuild/...);
+# precisa existir ou o pnpm 10+/11 aborta por causa de build scripts ignorados.
 COPY package.json pnpm-lock.yaml* pnpm-workspace.yaml* .npmrc* ./
 RUN pnpm install --frozen-lockfile
 
-# Copy sources and build
 COPY . .
 RUN pnpm build
 
-# ─── runtime stage ────────────────────────────────────────────────────────
+# --- estagio de runtime ------------------------------------------------------
 FROM node:22-slim
-# python3 is required by scripts/pty-helper.py (terminal feature). Originally
-# added in PR #185 for issue #161; regressed by the 2026-05-01 rename commit
-# efcb7d14 and re-added here per issue #259.
+# python3 e exigido por src/server/pty-helper.py (terminal).
 RUN apt-get update && apt-get install -y --no-install-recommends \
       ca-certificates curl tini python3 \
     && rm -rf /var/lib/apt/lists/* \
@@ -39,17 +42,23 @@ COPY --from=gosu_source /gosu /usr/local/bin/gosu
 
 WORKDIR /app
 
-# Copy build artefacts + runtime deps.
-# server-entry.js is the Node HTTP server that wraps the TanStack Start fetch
-# handler exported by dist/server/server.js. Without it, `node dist/server/server.js`
-# imports the handler module, runs top-level code, and exits (code 0) because
-# nothing keeps the event loop alive — see issue #129.
+# server-entry.js e o servidor HTTP Node que embrulha o fetch handler exportado
+# por dist/server/server.js. Sem ele, `node dist/server/server.js` importa o
+# modulo, roda o top-level e sai com codigo 0 — ver issue #129.
 COPY --from=build --chown=workspace:workspace /app/dist ./dist
 COPY --from=build --chown=workspace:workspace /app/node_modules ./node_modules
 COPY --from=build --chown=workspace:workspace /app/package.json ./package.json
 COPY --from=build --chown=workspace:workspace /app/server-entry.js ./server-entry.js
 COPY --from=build --chown=workspace:workspace /app/skills ./skills
+# lidos em runtime a partir de process.cwd() — ver cabecalho
+COPY --from=build --chown=workspace:workspace /app/swarm.yaml ./swarm.yaml
+COPY --from=build --chown=workspace:workspace /app/assets ./assets
+COPY --from=build --chown=workspace:workspace /app/scripts ./scripts
+COPY --from=build --chown=workspace:workspace /app/agents ./agents
 COPY --chown=workspace:workspace docker/entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+
+# estado gravavel do servidor (tool-artifacts, sessoes, swarm-missions)
+RUN mkdir -p /app/.runtime && chown -R workspace:workspace /app/.runtime
 
 ENV NODE_ENV=production \
     PORT=3000 \
