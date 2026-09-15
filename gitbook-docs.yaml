@@ -1,5 +1,4 @@
 $schema: https://api.gitbook.com/gitbook-docs.yaml
-version: 1
 site:
   title: Hermes Workspace
   structure:
@@ -16,7 +15,7 @@ site:
           default: true
           content:
             directory: ./docs
-
+            language: pt-br
     - type: section
       key: section-agents
       title: Agents
@@ -29,7 +28,6 @@ site:
           default: true
           content:
             directory: ./agents
-
     - type: section
       key: section-extensions
       title: Extensions
