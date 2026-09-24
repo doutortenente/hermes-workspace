@@ -37,9 +37,10 @@ if [ "$(id -u)" = "0" ]; then
     usermod -o -u "$TARGET_UID" "$WORKSPACE_USER"
   fi
 
-  mkdir -p "$WORKSPACE_HOME/.hermes" /workspace
+  mkdir -p "$WORKSPACE_HOME/.hermes" /workspace /app/.runtime
   fix_owner_if_needed "$WORKSPACE_HOME"
   fix_owner_if_needed /workspace
+  fix_owner_if_needed /app/.runtime
 
   echo "Dropping root privileges"
   exec gosu "$WORKSPACE_USER:$WORKSPACE_GROUP" "$0" "$@"
