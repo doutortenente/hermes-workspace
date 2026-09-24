@@ -9,9 +9,6 @@ dist
 # `COPY . .` e forcava rebuild do `pnpm build` sem necessidade.
 docker-compose.yml
 docker-compose.dev.yml
-docker-compose.tijolao.yml
-tijolao.sh
-COMO-USAR.md
 README.md
 CHANGELOG.md
 CONTRIBUTING.md

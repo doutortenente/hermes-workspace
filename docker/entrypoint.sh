@@ -37,9 +37,25 @@ if [ "$(id -u)" = "0" ]; then
     usermod -o -u "$TARGET_UID" "$WORKSPACE_USER"
   fi
 
-  mkdir -p "$WORKSPACE_HOME/.hermes" /workspace
+  # HERMES_HOST_HOME reaponta o home do usuario no /etc/passwd. Necessario
+  # porque `gosu` define HOME a partir do passwd e descarta o HOME do compose;
+  # sem isso homedir() devolve /home/workspace e o Swarm procura os wrappers
+  # em /home/workspace/.local/bin, que nao existe. Os caminhos resolvidos aqui
+  # precisam ser validos no HOST tambem: e la que o servidor tmux executa.
+  if [ -n "${HERMES_HOST_HOME:-}" ]; then
+    echo "Pointing workspace home at $HERMES_HOST_HOME"
+    usermod -d "$HERMES_HOST_HOME" "$WORKSPACE_USER"
+    WORKSPACE_HOME="$HERMES_HOST_HOME"
+  fi
+
+  mkdir -p "$WORKSPACE_HOME/.hermes" /workspace /app/.runtime
   fix_owner_if_needed "$WORKSPACE_HOME"
   fix_owner_if_needed /workspace
+  # /app/.runtime nasce no Dockerfile com o uid original do usuario workspace
+  # (10010). Quando HERMES_UID troca esse uid, a pasta fica orfa e o servidor
+  # nao grava mais nela: "EACCES ... /app/.runtime/swarm-missions.json".
+  # Atinge Conductor/Swarm e tool-artifacts.
+  fix_owner_if_needed /app/.runtime
 
   echo "Dropping root privileges"
   exec gosu "$WORKSPACE_USER:$WORKSPACE_GROUP" "$0" "$@"

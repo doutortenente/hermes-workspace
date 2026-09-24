@@ -37,9 +37,16 @@ RUN pnpm build
 
 # --- estagio de runtime ------------------------------------------------------
 FROM node:22-slim
-# python3 e exigido por src/server/pty-helper.py (terminal).
+# Binarios que o servidor invoca via execFileSync. Faltando qualquer um, a
+# funcionalidade correspondente falha em silencio:
+#   python3  src/server/pty-helper.py              terminal PTY
+#   sqlite3  src/server/kanban-backend.ts          Kanban ("spawnSync ENOENT")
+#   tmux     src/routes/api/swarm-tmux-start.ts    Swarm (so o CLIENTE; o
+#            src/server/swarm-notifications.ts     servidor roda no host)
+#   git      src/routes/api/swarm-project.ts       status do repo do worker
+#   lsof     src/routes/api/swarm-project.ts       cwd do processo do worker
 RUN apt-get update && apt-get install -y --no-install-recommends \
-      ca-certificates curl tini python3 \
+      ca-certificates curl tini python3 sqlite3 tmux git lsof \
     && rm -rf /var/lib/apt/lists/* \
     && groupadd -r workspace && useradd -r -g workspace -u 10010 -m workspace
 
